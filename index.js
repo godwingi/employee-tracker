@@ -1,16 +1,7 @@
 const inquirer = require('inquirer');
 require('console.table');
 const mysql = require('mysql2');
-// const { response } = require('express');
 
-// const Sequelize = require('./config/connection');
-
-// require('dotenv').config()
-// const db = new Sequelize (
-//   process.env.DB_NAME,
-//   process.env.DB_PASSWORD,
-//   process.env.DB_USER
-// )
 const db = mysql.createConnection(
   {
     host: 'localhost',
@@ -20,7 +11,6 @@ const db = mysql.createConnection(
   },
   console.log(`Connected to the employee_db database.`)
 )
-
 // TODO: Create a function to initialize app
 function taskManager() {
 inquirer
@@ -29,7 +19,7 @@ inquirer
       type: 'list',
       name: 'task',
       message: 'Choose one:',
-      choices: ["View all departments", "View all roles", "View all employees", "Add a department", "Add a role", "Add an employee", "Update an employee role"]
+      choices: ["View all departments", "View all roles", "View all Managers", "View all employees", "Add a department", "Add a role", "Add an employee", "Add a manager", "Update an employee role", "Quit"]
     },
    ])
     .then((response) => {
@@ -38,6 +28,9 @@ inquirer
       }
       if(response.task === "View all roles") {
         viewAllRoles();
+      }
+      if(response.task === "View all Managers") {
+        viewAllManagers();
       }
       if(response.task === "View all employees") {
         viewAllEmployees();
@@ -51,8 +44,14 @@ inquirer
       if(response.task === "Add an employee") {
         addEmployee();
       } 
+      if(response.task === "Add a manager") {
+        addManager();
+      } 
       if(response.task === "Update an employee role") {
         updateEmployeeRole();
+      }
+      if(response.task === "Quit") {
+        quit();
       }
     })
     .catch((error)=> {
@@ -60,23 +59,33 @@ inquirer
     })
 };
 
+function quit() {
+  console.log("You have successfully quit the application!")
+}
 function viewAllDepartments() {
     db.query("SELECT * FROM departments" , function (err, result) {
-      console.table(result)
+      console.table("/n" , result)
     })
     taskManager();
-}
+  }
+
+  function viewAllManagers() {
+    db.query("SELECT * FROM manager" , function (err, result) {
+      console.table("/n" , result)
+    })
+    taskManager();
+  }
 
 function viewAllRoles() {
   db.query("SELECT * FROM all_roles" , function (err, result) {
-    console.table(result)
+    console.table("/n" , result)
   })
   taskManager();
 }
 
 function viewAllEmployees() {
-  db.query("SELECT * FROM employees" , function (err, result) {
-    console.table(result)
+  db.query("SELECT employees.id, employees.first_name, employees.last_name, employees.manager, employees.role_id, all_roles.job_title, all_roles.salary, all_roles.department_id FROM employees JOIN all_roles ON employees.role_id = all_roles.id" , function (err, result) {
+    console.table("/n" , result)
   })
   taskManager();
 }
@@ -92,12 +101,44 @@ function addDepartment() {
   ])
   .then((response) => {
     db.query("INSERT INTO departments(name) VALUES(?)", response.department, function (err, result) {
-      console.table(result)
+      console.table("/n" , result)
     })
     taskManager();
   })
 }
 
+function addManager() {
+  db.query('SELECT * FROM employees', (err, result) => {
+    let managerOptions = result.map((newManager) => {
+      return {
+        id: newManager.id,
+        name: `${newManager.first_name} ${newManager.last_name}`
+      }})
+      console.log(managerOptions)
+
+  inquirer
+  .prompt([
+    {
+      type: 'list',
+      name: 'promotion',
+      message: 'Choose an employee to promote.',
+      choices: managerOptions,
+    },
+  ])
+  .then((response) => {
+    let managerName = managerOptions.filter((promotion) => promotion.name === response.promotion)
+    console.log(managerName)
+
+    let managerId = managerOptions.filter((promotion) => promotion.id === response.promotion)
+    console.log(managerId)
+
+    db.query(`INSERT INTO manager(manager_name, manager_id) VALUES('${managerName}', ${managerId})`, function (err, result) {
+      console.table("/n" , result)
+    })
+  })
+    taskManager();
+  })
+}
 
 function addRole() {
   const depts = []
@@ -108,7 +149,7 @@ function addRole() {
       id: deptResults[i].id,
       name: deptResults[i].name
     })}
-    console.log(depts)
+    // console.log(depts)
 })
   inquirer
   .prompt([
@@ -135,11 +176,10 @@ function addRole() {
     if(response.department == depts[i].name){
       deptId = depts[i].id
     }}
-    console.log(deptId)
-    console.log(response)
-   db.query("INSERT INTO all_roles(job_title, salary, department_id) VALUES(?, ?, ?)", response.job, response.salary, deptId, function (err, result) {
-    console.table(result)
+    db.query(`INSERT INTO all_roles(job_title, salary, department_id) VALUES('${response.job}', ${response.salary}, ${deptId})`, function (err, result) {
+      console.table("/n" , result)
     })
+    taskManager();
   }
   )
 }
@@ -152,11 +192,16 @@ function addEmployee(){
     roles.push({
       id: roleResults[i].id,
       name: roleResults[i].job_title,
-      salary: roleResults[i].salary,
-      department: roleResults[i].department_id
     })}
-    console.log(roles)
 })
+
+const manager = []
+db.query("SELECT * FROM manager", function (err, managerResults) {
+  for(let i = 0; i < managerResults.length; i++) {
+  manager.push(managerResults[i].manager_name)
+  // console.log(manager)
+}})
+
 inquirer
   .prompt([
     {
@@ -171,55 +216,94 @@ inquirer
     },
     {
       type: 'list',
+      name: 'managerName',
+      message: 'Who is your manager?',
+      choices: manager,
+    },
+    {
+      type: 'list',
       name: 'roleId',
       message: 'What is your role',
       choices: roles,
     },
   ])
   .then((response) => {
-    db.query("INSERT INTO employees(first_name, last_name, role_id) VALUES(?, ?, ?)", response.firstName, response.lastName, response.roleId, function (err, result) {
-      console.table(result)
-    })
-    addRole();
-  })
+    let roleId 
+    for(let i = 0; i < roles.length; i++) {
+     if(response.roleId == roles[i].name){
+       roleId = roles[i].id
+      }}
+      // console.log(response.firstName)
+      // console.log(response.lastName)
+      // console.log(response.managerName)
+      // console.log(response.roleId)
+      // console.log(roleId)
+    db.query(`INSERT INTO employees(first_name, last_name, manager, role_id) VALUES('${response.firstName}', '${response.lastName}', '${response.managerName}', ${roleId})`, function (err, result) {
+      console.table("/n" , result)
+      console.log(result)
+    }) 
+    taskManager();
+  }
+  )
 }
 
 function updateEmployeeRole(){
   const employeeList = []
 
-  db.query("SELECT * FROM employee", function (err, employeeResults) {
+  db.query("SELECT employees.id, employees.first_name, employees.last_name", function (err, employeeResults) {
     for(let i = 0; i < employeeResults.length; i++) {
+      // console.log(employeeResults)
     employeeList.push({
       id: employeeResults[i].id,
-      firstname: employeeResults[i].first_name,
-      lastname: employeeResults[i].last_name
-      // role_id: employeeResults[i].role_id,
-      // manager_id: employeeResults[i].manager_id
+      name: `${employeeResults[i].first_name} ${employeeResults[i].last_name}`
     })}
     console.log(employeeList)
-})
-inquirer
-  .prompt([
+
+    inquirer
+    .prompt([
     {
       type: 'list',
       name: 'employee',
       message: 'Whose information would you like to update?',
       choices: employeeList,
     },
+    ])
+    .then((response) => {
+    console.log(response)
+    let selectedUser = employeeList.filter((employee) => employee.name === response.employee)
+    // console.log(selectedUser)
+
+    db.query('SELECT * FROM all_roles', (err, result) => {
+      let roleDetails = result.map((role) => {
+        return {
+          id: role.id,
+          name: role.job_title
+        }
+      })
+      // console.log(roleDetails)
+
+      inquirer
+      .prompt([
     {
       type: 'list',
-      name: 'update',
-      message: 'What will you be updating?',
-      choices: ["department, role, salary, manager id"]
+      name: 'role',
+      message: 'What role would you like to update?',
+      choices: roleDetails,
     },
   ])
   .then((response) => {
-    if(response.update === "department") {
-    db.query("INSERT INTO employees(first_name, last_name, role_id) VALUES(?, ?, ?)", response.firstName, response.lastName, response.roleId, function (err, result) {
-      console.table(result)
-    })}
+    let selectedRole = roleDetails.filter((role) => role.name === response.role)
+    console.log(selectedRole)
+    console.log(selectedUser)
+
+    db.query(`UPDATE employees SET role_id = ${selectedRole[0].id} WHERE id = ${selectedUser[0].id};`, function (err, result) {
+      console.table("/n" , result)
+    })
     taskManager();
   })
+    })
+  })
+})
 }
 
 taskManager();

@@ -3,7 +3,7 @@
 ## Description
   This following application contains a Management system which will allow an employer to keep track of his or her employees and their information. The management system tracks departments, employees, and the roles that the employees belong to in each dempartment.
 
-  Here is the link to the video: []
+  Here is the link to the video: [https://watch.screencastify.com/v/Xv55MAqm8OuQScbFupuc]
 
   Here is the link to the github repository: [https://github.com/godwingi/employee-tracker]
 

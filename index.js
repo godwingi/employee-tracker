@@ -6,7 +6,7 @@ const db = mysql.createConnection(
   {
     host: 'localhost',
     user: 'root',
-    password: '',
+    password: 'PLEASE ENTER YOUR PASSWORD',
     database: 'employee_db'
   },
   console.log(`Connected to the employee_db database.`)
@@ -108,13 +108,13 @@ function addDepartment() {
 }
 
 function addManager() {
-  db.query('SELECT * FROM employees', (err, result) => {
+  db.query('SELECT * FROM employees;', (err, result) => {
     let managerOptions = result.map((newManager) => {
       return {
         id: newManager.id,
         name: `${newManager.first_name} ${newManager.last_name}`
       }})
-      console.log(managerOptions)
+      // console.log(managerOptions)
 
   inquirer
   .prompt([
@@ -126,17 +126,16 @@ function addManager() {
     },
   ])
   .then((response) => {
+    
     let managerName = managerOptions.filter((promotion) => promotion.name === response.promotion)
-    console.log(managerName)
+  
 
-    let managerId = managerOptions.filter((promotion) => promotion.id === response.promotion)
-    console.log(managerId)
-
-    db.query(`INSERT INTO manager(manager_name, manager_id) VALUES('${managerName}', ${managerId})`, function (err, result) {
+    db.query(`INSERT INTO manager(manager_name, manager_id) VALUES('${managerName[0].name}', ${managerName[0].id});`, function (err, result) {
+      if(err) console.log(err)
       console.table("/n" , result)
     })
-  })
     taskManager();
+  })
   })
 }
 
@@ -250,9 +249,10 @@ inquirer
 function updateEmployeeRole(){
   const employeeList = []
 
-  db.query("SELECT employees.id, employees.first_name, employees.last_name", function (err, employeeResults) {
+  db.query("SELECT employees.id, employees.first_name, employees.last_name FROM employees;", function (err, employeeResults) {
+    console.log(employeeResults)
     for(let i = 0; i < employeeResults.length; i++) {
-      // console.log(employeeResults)
+   
     employeeList.push({
       id: employeeResults[i].id,
       name: `${employeeResults[i].first_name} ${employeeResults[i].last_name}`
